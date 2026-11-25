@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scaleo панель</title>
+<!-- Официальный скрипт Telegram Mini App: даёт тему, MainButton и sendData -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  /* Цвета берём из темы Telegram, поэтому светлая и тёмная тема работают сами. Справа — запасные значения для браузера */
+  :root {
+    --bg: var(--tg-theme-secondary-bg-color, #f2f3f5);
+    --card: var(--tg-theme-bg-color, #ffffff);
+    --text: var(--tg-theme-text-color, #16181d);
+    --hint: var(--tg-theme-hint-color, #8a8f98);
+    --accent: var(--tg-theme-button-color, #3478f6);
+    --on-accent: var(--tg-theme-button-text-color, #ffffff);
+    --danger: var(--tg-theme-destructive-text-color, #e5484d);
+    --line: color-mix(in srgb, var(--hint) 22%, transparent);
+    --soft: color-mix(in srgb, var(--accent) 10%, transparent);
+    --r: 14px;
+  }
+  /* Тёмная тема для просмотра в обычном браузере (в Telegram цвета придут из темы) */
+  @media (prefers-color-scheme: dark) {
+    :root:not(.tg) {
+      --bg: #0f1115; --card: #181b21; --text: #eceef2; --hint: #7d838e; --accent: #4c8dff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 18px 16px 96px; }
+
+  /* Шапка */
+  .head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .logo {
+    width: 40px; height: 40px; border-radius: 12px; background: var(--accent); color: var(--on-accent);
+    display: grid; place-items: center; font-weight: 700; font-size: 18px; letter-spacing: -0.5px;
+  }
+  .head h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  .head p { margin: 0; font-size: 13px; color: var(--hint); }
+
+  /* Вкладки-сегменты */
+  .tabs {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px;
+    background: var(--card); border-radius: var(--r); border: 1px solid var(--line); margin-bottom: 14px;
+  }
+  .tab {
+    border: 0; background: transparent; color: var(--hint); font: inherit; font-size: 13px; font-weight: 500;
+    padding: 9px 4px; border-radius: 10px; cursor: pointer; transition: background .15s, color .15s;
+  }
+  .tab[aria-selected="true"] { background: var(--soft); color: var(--accent); }
+
+  /* Карточка формы */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 16px 14px; }
+  .card h2 { font-size: 13px; font-weight: 600; color: var(--hint); text-transform: uppercase; letter-spacing: .4px; margin: 12px 0 4px; }
+  .field { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .field:last-child { border-bottom: 0; }
+  label { display: block; font-size: 13px; color: var(--hint); margin-bottom: 6px; }
+  label b { color: var(--danger); font-weight: 500; }
+  input, select, textarea {
+    width: 100%; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid transparent; border-radius: 10px; padding: 11px 12px; outline: none; appearance: none;
+  }
+  select { background-image: linear-gradient(45deg, transparent 50%, var(--hint) 50%), linear-gradient(135deg, var(--hint) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 32px; }
+  textarea { resize: vertical; min-height: 72px; line-height: 1.45; }
+  .section { margin-top: 12px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr 92px; gap: 10px; border-bottom: 0; padding-bottom: 4px; }
+  .row .sub .err { font-size: 11px; }
+  .margin { font-size: 13px; color: var(--hint); padding: 2px 0 10px; border-bottom: 1px solid var(--line); }
+  .margin.good { color: var(--tg-theme-accent-text-color, #1f9d55); }
+  .margin.bad { color: var(--danger); }
+  input::placeholder, textarea::placeholder { color: var(--hint); opacity: .6; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); background: var(--card); }
+  .invalid input, .invalid select, .invalid textarea { border-color: var(--danger); }
+  .err { display: none; font-size: 12px; color: var(--danger); margin-top: 6px; }
+  .invalid .err { display: block; }
+  .help { font-size: 12px; color: var(--hint); margin-top: 6px; }
+  .manual { margin-top: 8px; }
+  .hidden { display: none !important; }
+
+  /* Чипсы видимости оффера */
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-size: 13px;
+    padding: 8px 12px; border-radius: 999px; cursor: pointer;
+  }
+  .chip[aria-pressed="true"] { border-color: var(--accent); background: var(--soft); color: var(--accent); }
+
+  /* Своя кнопка — только вне Telegram (в Telegram используется нативная MainButton) */
+  .submit {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; width: calc(100% - 32px); max-width: 488px;
+    border: 0; border-radius: var(--r); padding: 15px; font: inherit; font-weight: 600;
+    background: var(--accent); color: var(--on-accent); cursor: pointer;
+  }
+  .note { font-size: 12px; color: var(--hint); text-align: center; margin-top: 14px; }
+  .toast {
+    position: fixed; left: 16px; right: 16px; bottom: 84px; max-width: 488px; margin: 0 auto;
+    background: var(--text); color: var(--card); padding: 12px 14px; border-radius: 12px; font-size: 13px;
+    opacity: 0; transform: translateY(8px); transition: .2s; pointer-events: none; white-space: pre-wrap; word-break: break-all;
+  }
+  .toast.show { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div class="logo">S</div>
+    <div>
+      <h1>Scaleo панель</h1>
+      <p id="mode">Создание записей в трекере</p>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-kind="offer" aria-selected="true">Оффер</button>
+    <button class="tab" role="tab" data-kind="campaign" aria-selected="false">Кампания</button>
+    <button class="tab" role="tab" data-kind="advertiser" aria-selected="false">Реклам.</button>
+    <button class="tab" role="tab" data-kind="affiliate" aria-selected="false">Партнёр</button>
+  </div>
+
+  <!-- Оффер -->
+  <form class="card" data-form="offer" novalidate>
+    <h2>Основное</h2>
+    <div class="field" data-name="advertiser_id" data-type="pick" data-list="advertisers">
+      <label>Рекламодатель <b>*</b></label>
+      <select></select>
+      <input class="manual hidden" inputmode="numeric" placeholder="ID рекламодателя">
+      <div class="err">Выберите рекламодателя или введите ID</div>
+    </div>
+    <div class="field" data-name="title" data-type="text" data-max="128" data-required>
+      <label>Название <b>*</b></label>
+      <input placeholder="Casino DE CPA" maxlength="128">
+      <div class="err">От 1 до 128 символов</div>
+    </div>
+    <div class="field" data-name="default_url" data-type="url" data-required>
+      <label>Ссылка на лендинг <b>*</b></label>
+      <input type="url" inputmode="url" placeholder="https://lp.example.com/de">
+      <div class="err">Ссылка должна начинаться с https://</div>
+    </div>
+    <div class="field" data-name="description" data-type="text" data-max="1000">
+      <label>Описание для партнёров</label>
+      <textarea rows="3" maxlength="1000" placeholder="GEO, разрешённые источники, условия холда"></textarea>
+      <div class="err">До 1000 символов</div>
+      <div class="help"><span data-count>0</span> / 1000</div>
+    </div>
+  </form>
+
+  <form class="card section" data-form="offer" novalidate>
+    <h2>Цель и выплаты</h2>
+    <div class="field" data-name="goal_title" data-type="text" data-max="128" data-required>
+      <label>Название цели <b>*</b></label>
+      <input value="Default" maxlength="128">
+      <div class="err">От 1 до 128 символов</div>
+    </div>
+    <div class="field row">
+      <div data-name="goal_revenue" data-type="money" data-required class="sub">
+        <label>Доход <b>*</b></label>
+        <input inputmode="decimal" placeholder="50">
+        <div class="err">Число, до 2 знаков</div>
+      </div>
+      <div data-name="goal_payout" data-type="money" data-required class="sub">
+        <label>Выплата <b>*</b></label>
+        <input inputmode="decimal" placeholder="40">
+        <div class="err">Число, до 2 знаков</div>
+      </div>
+      <div data-name="currency" data-type="select" class="sub cur">
+        <label>Валюта</label>
+        <select><option>USD</option><option>EUR</option><option>GBP</option></select>
+      </div>
+    </div>
+    <div class="margin" id="margin">Доход — что платит рекламодатель, выплата — что получает партнёр</div>
+    <div class="field" data-name="goal_type" data-type="id">
+      <label>ID типа цели</label>
+      <input inputmode="numeric" placeholder="Необязательно">
+      <div class="err">Нужен положительный целый ID</div>
+      <div class="help">Пусто — тип по умолчанию в трекере</div>
+    </div>
+  </form>
+
+  <form class="card section" data-form="offer" novalidate>
+    <h2>Настройки</h2>
+    <div class="field" data-name="status" data-type="chips">
+      <label>Статус</label>
+      <div class="chips">
+        <button type="button" class="chip" data-value="1" aria-pressed="true">Активный</button>
+        <button type="button" class="chip" data-value="2" aria-pressed="false">Тестовый</button>
+        <button type="button" class="chip" data-value="6" aria-pressed="false">Черновик</button>
+      </div>
+    </div>
+    <div class="field" data-name="visible_type" data-type="chips">
+      <label>Видимость</label>
+      <div class="chips">
+        <button type="button" class="chip" data-value="1" aria-pressed="true">Приватный</button>
+        <button type="button" class="chip" data-value="2" aria-pressed="false">Публичный</button>
+        <button type="button" class="chip" data-value="3" aria-pressed="false">С одобрением</button>
+      </div>
+    </div>
+    <div class="field" data-name="internal_info" data-type="text" data-max="1000">
+      <label>Внутренняя заметка</label>
+      <textarea rows="2" maxlength="1000" placeholder="Видна только команде, не партнёрам"></textarea>
+      <div class="err">До 1000 символов</div>
+    </div>
+  </form>
+
+  <!-- Кампания -->
+  <form class="card hidden" data-form="campaign" novalidate>
+    <h2>Новая кампания</h2>
+    <div class="field" data-name="affiliate_id" data-type="pick" data-list="affiliates">
+      <label>Партнёр <b>*</b></label>
+      <select></select>
+      <input class="manual hidden" inputmode="numeric" placeholder="ID партнёра">
+      <div class="err">Выберите партнёра или введите ID</div>
+    </div>
+    <div class="field" data-name="offer_id" data-type="pick" data-list="offers">
+      <label>Оффер <b>*</b></label>
+      <select></select>
+      <input class="manual hidden" inputmode="numeric" placeholder="ID оффера">
+      <div class="err">Выберите оффер или введите ID</div>
+    </div>
+    <div class="field" data-name="landing_page_id" data-type="id" data-required>
+      <label>ID лендинга <b>*</b></label>
+      <input inputmode="numeric" placeholder="12">
+      <div class="err">Нужен положительный целый ID</div>
+      <div class="help">Карточка оффера в трекере → Landing pages</div>
+    </div>
+    <div class="field" data-name="traffic_source_id" data-type="id">
+      <label>ID источника трафика</label>
+      <input inputmode="numeric" placeholder="Необязательно">
+      <div class="err">Нужен положительный целый ID</div>
+    </div>
+    <div class="field" data-name="name" data-type="text" data-max="100" data-required>
+      <label>Название кампании <b>*</b></label>
+      <input placeholder="Acme · Casino DE · FB" maxlength="100">
+      <div class="err">От 1 до 100 символов</div>
+    </div>
+  </form>
+
+  <!-- Рекламодатель -->
+  <form class="card hidden" data-form="advertiser" novalidate>
+    <h2>Новый рекламодатель</h2>
+    <div class="field" data-name="email" data-type="email" data-required>
+      <label>Email <b>*</b></label>
+      <input type="email" inputmode="email" placeholder="manager@company.com">
+      <div class="err">Введите корректный email</div>
+    </div>
+    <div class="field" data-name="company_name" data-type="text" data-max="64">
+      <label>Компания</label>
+      <input placeholder="Acme Media" maxlength="64">
+      <div class="err">До 64 символов</div>
+    </div>
+  </form>
+
+  <!-- Партнёр -->
+  <form class="card hidden" data-form="affiliate" novalidate>
+    <h2>Новый партнёр</h2>
+    <div class="field" data-name="email" data-type="email" data-required>
+      <label>Email <b>*</b></label>
+      <input type="email" inputmode="email" placeholder="partner@team.com">
+      <div class="err">Введите корректный email</div>
+    </div>
+    <div class="field" data-name="company_name" data-type="text" data-max="255">
+      <label>Компания</label>
+      <input placeholder="Media Team" maxlength="255">
+      <div class="err">До 255 символов</div>
+    </div>
+  </form>
+
+  <p class="note">Бот покажет данные ещё раз и создаст запись только после подтверждения</p>
+</div>
+
+<button class="submit" id="submit" type="button">Отправить в бот</button>
+<div class="toast" id="toast"></div>
+
+<script>
+  // Объект Mini App. Вне Telegram его нет или он пустой
+  const tg = window.Telegram && window.Telegram.WebApp;
+  // Внутри Telegram есть initData; по нему понимаем, что мы в боте, а не в браузере
+  const inTelegram = Boolean(tg && tg.initData);
+
+  // Сообщаем Telegram, что приложение готово, и разворачиваем на весь экран
+  if (inTelegram) {
+    tg.ready();
+    tg.expand();
+    document.documentElement.classList.add("tg");
+  }
+
+  // Демо-списки для просмотра в браузере
+  const DEMO = {
+    advertisers: [[5, "Acme Media"], [8, "BetPartners"]],
+    affiliates: [[14, "Media Team"], [21, "Pro Traffic"]],
+    offers: [[42, "Casino DE CPA"], [43, "Sport BR RevShare"]],
+  };
+
+  // Списки рекламодателей, партнёров и офферов бот кладёт в адрес после # (на сервер это не уходит)
+  function readLists() {
+    try {
+      const raw = new URLSearchParams(location.hash.slice(1)).get("d");
+      if (!raw) return inTelegram ? {} : DEMO;
+      // base64url → байты → текст UTF-8 → JSON
+      const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch (e) {
+      return inTelegram ? {} : DEMO;
+    }
+  }
+  const lists = readLists();
+  if (!inTelegram) document.getElementById("mode").textContent = "Предпросмотр · демо-данные";
+
+  // Заполняем выпадающие списки. Текст ставим через .text, а не innerHTML, чтобы не было XSS
+  document.querySelectorAll('[data-type="pick"]').forEach((field) => {
+    const select = field.querySelector("select");
+    const manual = field.querySelector(".manual");
+    const items = Array.isArray(lists[field.dataset.list]) ? lists[field.dataset.list] : [];
+    select.add(new Option(items.length ? "Выберите…" : "Список пуст — введите ID", ""));
+    items.forEach(([id, label]) => select.add(new Option(`${id} · ${label}`, String(id))));
+    select.add(new Option("Ввести ID вручную", "manual"));
+    // Пустой список — сразу показываем поле для ID
+    if (!items.length) { select.value = "manual"; manual.classList.remove("hidden"); }
+    // Переключаем поле ручного ввода
+    select.addEventListener("change", () => manual.classList.toggle("hidden", select.value !== "manual"));
+  });
+
+  // Переключение чипсов видимости: выбран всегда ровно один
+  document.querySelectorAll(".chips").forEach((group) => {
+    group.addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      group.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(c === chip)));
+      tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
+    });
+  });
+
+  // Переключение вкладок
+  let kind = "offer";
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      kind = tab.dataset.kind;
+      document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
+      document.querySelectorAll("[data-form]").forEach((f) => f.classList.toggle("hidden", f.dataset.form !== kind));
+      window.scrollTo(0, 0);
+      tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
+    });
+  });
+
+  // Убираем подсветку ошибки, как только человек начал править поле
+  document.addEventListener("input", (e) => {
+    const field = e.target.closest(".sub") || e.target.closest(".field");
+    if (field) field.classList.remove("invalid");
+    // Счётчик символов описания
+    const counter = e.target.closest(".field") && e.target.closest(".field").querySelector("[data-count]");
+    if (counter) counter.textContent = e.target.value.length;
+    // Пересчёт маржи при вводе сумм
+    if (e.target.closest('[data-name="goal_revenue"], [data-name="goal_payout"], [data-name="currency"]')) updateMargin();
+  });
+
+  // Маржа = доход − выплата. Подсвечиваем, если уходит в минус
+  function updateMargin() {
+    const el = document.getElementById("margin");
+    const r = document.querySelector('[data-name="goal_revenue"] input').value.trim().replace(",", ".");
+    const p = document.querySelector('[data-name="goal_payout"] input').value.trim().replace(",", ".");
+    const cur = document.querySelector('[data-name="currency"] select').value;
+    el.classList.remove("good", "bad");
+    if (!isMoney(r) || !isMoney(p)) {
+      el.textContent = "Доход — что платит рекламодатель, выплата — что получает партнёр";
+      return;
+    }
+    const m = Math.round((Number(r) - Number(p)) * 100) / 100;
+    el.textContent = m < 0 ? `Маржа ${m} ${cur} — выплата больше дохода` : `Маржа ${m} ${cur} с конверсии`;
+    el.classList.add(m < 0 ? "bad" : "good");
+  }
+  document.addEventListener("change", (e) => { if (e.target.closest('[data-name="currency"]')) updateMargin(); });
+
+  // Проверки — те же правила, что у бота (бот всё равно перепроверит сам)
+  const isId = (v) => /^\d{1,10}$/.test(v) && Number(v) > 0 && Number(v) <= 1e9;
+  const isMoney = (v) => /^\d{1,7}(\.\d{1,2})?$/.test(v) && Number(v) <= 1e6;
+  const isEmail = (v) => v.length <= 255 && /^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$/.test(v);
+  const isHttps = (v) => { try { const u = new URL(v); return u.protocol === "https:" && !!u.host && v.length <= 2048; } catch { return false; } };
+
+  // Читаем и проверяем все карточки активной вкладки. Возвращает поля или null, если есть ошибки
+  function collect() {
+    const fields = {};
+    let ok = true;
+    document.querySelectorAll(`[data-form="${kind}"] [data-name]`).forEach((field) => {
+      const name = field.dataset.name;
+      const type = field.dataset.type;
+      const required = field.hasAttribute("data-required");
+      let valid = true;
+      if (type === "pick") {
+        // Значение из списка или из поля ручного ввода
+        const select = field.querySelector("select");
+        const value = select.value === "manual" ? field.querySelector(".manual").value.trim() : select.value;
+        valid = isId(value);
+        if (valid) fields[name] = Number(value);
+      } else if (type === "chips") {
+        fields[name] = Number(field.querySelector('[aria-pressed="true"]').dataset.value);
+      } else if (type === "select") {
+        fields[name] = field.querySelector("select").value;
+      } else {
+        const value = field.querySelector("input, textarea").value.trim();
+        if (!value) {
+          valid = !required;
+        } else if (type === "email") {
+          valid = isEmail(value);
+          if (valid) fields[name] = value;
+        } else if (type === "url") {
+          valid = isHttps(value);
+          if (valid) fields[name] = value;
+        } else if (type === "id") {
+          valid = isId(value);
+          if (valid) fields[name] = Number(value);
+        } else if (type === "money") {
+          const v = value.replace(",", ".");
+          valid = isMoney(v);
+          if (valid) fields[name] = v;
+        } else {
+          valid = value.length <= Number(field.dataset.max);
+          if (valid) fields[name] = value;
+        }
+      }
+      field.classList.toggle("invalid", !valid);
+      if (!valid) ok = false;
+    });
+    if (!ok) {
+      // Прокручиваем к первой ошибке
+      const first = document.querySelector(`[data-form="${kind}"] .invalid`);
+      first && first.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    return ok ? fields : null;
+  }
+
+  // Показываем короткое сообщение внизу экрана
+  function toast(text) {
+    const el = document.getElementById("toast");
+    el.textContent = text;
+    el.classList.add("show");
+    clearTimeout(toast.t);
+    toast.t = setTimeout(() => el.classList.remove("show"), 3500);
+  }
+
+  // Отправка: проверяем, упаковываем и передаём боту
+  function submit() {
+    const fields = collect();
+    if (!fields) {
+      tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("error");
+      return;
+    }
+    const data = JSON.stringify({ v: 1, kind, fields });
+    // Telegram передаёт боту не больше 4096 байт
+    if (new TextEncoder().encode(data).length > 4000) {
+      toast("Слишком много текста. Сократите описание или заметку");
+      return;
+    }
+    if (inTelegram) {
+      // sendData отправляет данные боту и закрывает панель (лимит 4096 байт)
+      tg.sendData(data);
+    } else {
+      // В браузере просто показываем, что ушло бы боту
+      toast("Боту ушло бы:\n" + data);
+    }
+  }
+
+  // Внутри Telegram используем нативную кнопку снизу, свою прячем
+  const own = document.getElementById("submit");
+  if (inTelegram && tg.MainButton) {
+    own.classList.add("hidden");
+    tg.MainButton.setText("Отправить в бот");
+    tg.MainButton.onClick(submit);
+    tg.MainButton.show();
+  } else {
+    own.addEventListener("click", submit);
+  }
+</script>
+</body>
+</html>
