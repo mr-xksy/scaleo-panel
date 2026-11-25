@@ -32,7 +32,11 @@
     font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 520px; margin: 0 auto; padding: 18px 16px 96px; }
+  /* Сверху учитываем безопасные зоны: чёлку телефона и кнопки Telegram в полноэкранном режиме */
+  .wrap {
+    max-width: 520px; margin: 0 auto;
+    padding: calc(18px + var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 0px));
+  }
 
   /* Шапка */
   .head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
@@ -285,7 +289,16 @@
   // Сообщаем Telegram, что приложение готово, и разворачиваем на весь экран
   if (inTelegram) {
     tg.ready();
+    // Сначала разворачиваем на всю высоту (работает во всех версиях Telegram)
     tg.expand();
+    // В Telegram 8.0+ переходим в полноэкранный режим, как в Ksynex
+    if (tg.isVersionAtLeast && tg.isVersionAtLeast("8.0")) {
+      try { tg.requestFullscreen(); } catch (e) { console.log("fullscreen недоступен", e); }
+    }
+    // Чтобы панель не закрывалась случайным свайпом вниз при прокрутке формы
+    if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+    // Цвет шапки Telegram — как фон панели
+    if (tg.setHeaderColor) tg.setHeaderColor("secondary_bg_color");
     document.documentElement.classList.add("tg");
   }
 
