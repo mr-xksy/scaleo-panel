@@ -101,6 +101,17 @@
     border: 0; border-radius: var(--r); padding: 15px; font: inherit; font-weight: 600;
     background: var(--accent); color: var(--on-accent); cursor: pointer;
   }
+  .muted { color: var(--hint); font-weight: 400; }
+  details.more > summary { cursor: pointer; padding: 12px 0; font-size: 14px; font-weight: 600; list-style: none; }
+  details.more > summary::-webkit-details-marker { display: none; }
+  details.more > summary::before { content: "▸ "; color: var(--hint); }
+  details.more[open] > summary::before { content: "▾ "; }
+  .goal { display: grid; grid-template-columns: 1fr 1fr 84px; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .goal:last-child { border-bottom: 0; }
+  .goal .gname { grid-column: 1 / -1; font-size: 13px; font-weight: 600; }
+  .goal .gname span { color: var(--hint); font-weight: 400; }
+  .goal input { padding: 9px 10px; }
+  #presets { margin-bottom: 4px; }
   .note { font-size: 12px; color: var(--hint); text-align: center; margin: 12px 0 0; }
   .toast {
     position: fixed; left: 16px; right: 16px; bottom: 84px; max-width: 488px; margin: 0 auto;
@@ -127,9 +138,9 @@
     <button class="tab" role="tab" data-kind="affiliate" aria-selected="false">Партнёр</button>
   </div>
 
-  <!-- Оффер -->
+  <!-- Оффер: только то, что вводится каждый раз. Остальное — в «Дополнительно» -->
   <form class="card" data-form="offer" novalidate>
-    <h2>Основное</h2>
+    <h2>Оффер</h2>
     <div class="field" data-name="advertiser_id" data-type="pick" data-list="advertisers">
       <label>Рекламодатель <b>*</b></label>
       <select></select>
@@ -143,73 +154,71 @@
     </div>
     <div class="field" data-name="default_url" data-type="url" data-required>
       <label>Ссылка на лендинг <b>*</b></label>
-      <input type="url" inputmode="url" placeholder="https://lp.example.com/de">
+      <input type="url" inputmode="url" placeholder="https://lp.example.com/?click_id={click_id}">
       <div class="err">Ссылка должна начинаться с https://</div>
     </div>
-    <div class="field" data-name="description" data-type="text" data-max="1000">
-      <label>Описание для партнёров</label>
-      <textarea rows="3" maxlength="1000" placeholder="GEO, разрешённые источники, условия холда"></textarea>
-      <div class="err">До 1000 символов</div>
-      <div class="help"><span data-count>0</span> / 1000</div>
+    <div class="field" data-name="currency" data-type="chips-text">
+      <label>Валюта <span class="muted">— одна на все цели, потом не сменить</span></label>
+      <div class="chips">
+        <button type="button" class="chip" data-value="USD" aria-pressed="true">USD</button>
+        <button type="button" class="chip" data-value="EUR" aria-pressed="false">EUR</button>
+        <button type="button" class="chip" data-value="GBP" aria-pressed="false">GBP</button>
+      </div>
     </div>
   </form>
 
   <form class="card section" data-form="offer" novalidate>
-    <h2>Цель и выплаты</h2>
-    <div class="field" data-name="goal_title" data-type="text" data-max="128" data-required>
-      <label>Название цели <b>*</b></label>
-      <input value="Default" maxlength="128">
-      <div class="err">От 1 до 128 символов</div>
-    </div>
-    <div class="field row">
-      <div data-name="goal_revenue" data-type="money" data-required class="sub">
-        <label>Доход <b>*</b></label>
-        <input inputmode="decimal" placeholder="50">
-        <div class="err">Число, до 2 знаков</div>
+    <h2>Цели</h2>
+    <div class="field" data-name="goals" data-type="goals">
+      <div class="chips" id="presets">
+        <button type="button" class="chip" data-preset="reg_cpa" aria-pressed="true">REG + CPA</button>
+        <button type="button" class="chip" data-preset="cpa" aria-pressed="false">CPA</button>
+        <button type="button" class="chip" data-preset="reg_rs" aria-pressed="false">REG + RevShare</button>
+        <button type="button" class="chip" data-preset="rs" aria-pressed="false">RevShare</button>
+        <button type="button" class="chip" data-preset="cpc" aria-pressed="false">CPC</button>
       </div>
-      <div data-name="goal_payout" data-type="money" data-required class="sub">
-        <label>Выплата <b>*</b></label>
-        <input inputmode="decimal" placeholder="40 или 80%">
-        <div class="err">Число или % от дохода</div>
-      </div>
-      <div data-name="currency" data-type="select" class="sub cur">
-        <label>Валюта</label>
-        <select><option>USD</option><option>EUR</option><option>GBP</option></select>
-      </div>
-    </div>
-    <div class="margin">Доход — что платит рекламодатель, выплата — что получает партнёр. Выплату можно указать процентом от дохода: 80%</div>
-    <div class="field" data-name="goal_type" data-type="id">
-      <label>ID типа цели</label>
-      <input inputmode="numeric" placeholder="Необязательно">
-      <div class="err">ID — только цифры, например 12</div>
-      <div class="help">Пусто — тип по умолчанию в трекере</div>
+      <div id="goal-rows"></div>
+      <div class="err">Заполните доход и выплату у каждой цели. Для RevShare — проценты до 100, алиас — латиница строчными</div>
+      <div class="help">Первая цель — по умолчанию. Выплату можно процентом от дохода: 80%. Алиас подставлен сам, его можно поменять</div>
     </div>
   </form>
 
-  <form class="card section" data-form="offer" novalidate>
-    <h2>Настройки</h2>
+  <details class="card section more" data-form="offer">
+    <summary>Дополнительно <span class="muted">— статус, видимость, превью, описание</span></summary>
     <div class="field" data-name="status" data-type="chips">
       <label>Статус</label>
       <div class="chips">
-        <button type="button" class="chip" data-value="1" aria-pressed="true">Активный</button>
+        <button type="button" class="chip" data-value="6" aria-pressed="true">Черновик</button>
         <button type="button" class="chip" data-value="2" aria-pressed="false">Тестовый</button>
-        <button type="button" class="chip" data-value="6" aria-pressed="false">Черновик</button>
+        <button type="button" class="chip" data-value="1" aria-pressed="false">Активный</button>
       </div>
+      <div class="help">Черновик партнёры не видят — активируете в админке, когда всё проверите</div>
     </div>
     <div class="field" data-name="visible_type" data-type="chips">
       <label>Видимость</label>
       <div class="chips">
         <button type="button" class="chip" data-value="1" aria-pressed="true">Приватный</button>
         <button type="button" class="chip" data-value="2" aria-pressed="false">Публичный</button>
-        <button type="button" class="chip" data-value="3" aria-pressed="false">С одобрением</button>
+        <button type="button" class="chip" data-value="3" aria-pressed="false">По запросу</button>
       </div>
+    </div>
+    <div class="field" data-name="preview_url" data-type="url">
+      <label>URL превью</label>
+      <input type="url" inputmode="url" placeholder="https://preview.example.com">
+      <div class="err">Ссылка должна начинаться с https://</div>
+    </div>
+    <div class="field" data-name="description" data-type="text" data-max="1000">
+      <label>Описание для партнёров</label>
+      <textarea rows="3" maxlength="1000" placeholder="GEO, разрешённые источники, условия"></textarea>
+      <div class="err">До 1000 символов</div>
+      <div class="help"><span data-count>0</span> / 1000</div>
     </div>
     <div class="field" data-name="internal_info" data-type="text" data-max="1000">
       <label>Внутренняя заметка</label>
-      <textarea rows="2" maxlength="1000" placeholder="Видна только команде, не партнёрам"></textarea>
+      <textarea rows="2" maxlength="1000" placeholder="Видна только команде: капы, контакты"></textarea>
       <div class="err">До 1000 символов</div>
     </div>
-  </form>
+  </details>
 
   <!-- Кампания -->
   <form class="card hidden" data-form="campaign" novalidate>
@@ -341,7 +350,7 @@
   });
 
   // Переключение чипсов видимости: выбран всегда ровно один
-  document.querySelectorAll(".chips").forEach((group) => {
+  document.querySelectorAll(".chips:not(#presets)").forEach((group) => {
     group.addEventListener("click", (e) => {
       const chip = e.target.closest(".chip");
       if (!chip) return;
@@ -349,6 +358,89 @@
       tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
     });
   });
+
+  // Наборы целей — как в боте. Первая цель — по умолчанию, REG без денег (0 / 0)
+  const PRESETS = {
+    reg_cpa: ["CPA", "REG"], cpa: ["CPA"], reg_rs: ["RevShare", "REG"], rs: ["RevShare"], cpc: ["CPC"],
+  };
+  const PERCENT = new Set(["RevShare"]);
+  // Текущая валюта для подписей сумм
+  const currency = () => document.querySelector('[data-name="currency"] [aria-pressed="true"]').dataset.value;
+
+  // Рисуем строки целей для набора. Текст ставим через textContent, без innerHTML с данными
+  function renderGoals(key) {
+    const box = document.getElementById("goal-rows");
+    box.textContent = "";
+    PRESETS[key].forEach((type, i) => {
+      const row = document.createElement("div");
+      row.className = "goal";
+      row.dataset.type = type;
+      const name = document.createElement("div");
+      name.className = "gname";
+      name.textContent = type;
+      const hint = document.createElement("span");
+      hint.textContent = (i === 0 ? " · по умолчанию" : "") + (PERCENT.has(type) ? " · в процентах" : "");
+      name.appendChild(hint);
+      const unit = PERCENT.has(type) ? "%" : currency();
+      const mk = (cls, ph, value) => {
+        const input = document.createElement("input");
+        input.className = cls; input.placeholder = ph; input.inputMode = "decimal";
+        if (value !== undefined) input.value = value;
+        return input;
+      };
+      const reg = type === "REG";
+      row.append(
+        name,
+        mk("g-rev", "Доход, " + unit, reg ? "0" : undefined),
+        mk("g-pay", PERCENT.has(type) ? "Выплата, %" : "Выплата или 80%", reg ? "0" : undefined),
+        mk("g-alias", "алиас", type.toLowerCase()),
+      );
+      box.appendChild(row);
+    });
+  }
+  renderGoals("reg_cpa");
+  // Выбор набора: подсвечиваем и перерисовываем строки
+  document.getElementById("presets").addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-preset]");
+    if (!chip) return;
+    document.querySelectorAll("#presets .chip").forEach((c) => c.setAttribute("aria-pressed", String(c === chip)));
+    renderGoals(chip.dataset.preset);
+  });
+  // Смена валюты меняет подписи в строках целей
+  document.querySelector('[data-name="currency"]').addEventListener("click", () => {
+    setTimeout(() => {
+      const active = document.querySelector('#presets [aria-pressed="true"]');
+      const values = [...document.querySelectorAll(".goal")].map((r) => [r.querySelector(".g-rev").value, r.querySelector(".g-pay").value, r.querySelector(".g-alias").value]);
+      renderGoals(active.dataset.preset);
+      document.querySelectorAll(".goal").forEach((r, i) => { if (values[i]) [r.querySelector(".g-rev").value, r.querySelector(".g-pay").value, r.querySelector(".g-alias").value] = values[i]; });
+    }, 0);
+  });
+
+  // Цели из строк формы. Возвращает массив или null, если что-то не так
+  function collectGoals() {
+    const goals = [];
+    let ok = true;
+    document.querySelectorAll(".goal").forEach((row) => {
+      const type = row.dataset.type;
+      const rev = row.querySelector(".g-rev").value.trim().replace(",", ".").replace("%", "");
+      let pay = row.querySelector(".g-pay").value.trim().replace(",", ".").replace(/\s/g, "");
+      const alias = row.querySelector(".g-alias").value.trim();
+      if (PERCENT.has(type)) {
+        pay = pay.replace("%", "");
+      } else if (pay.endsWith("%")) {
+        // Выплата процентом от дохода этой цели
+        const pct = pay.slice(0, -1);
+        pay = isMoney(pct) && Number(pct) <= 100 && isMoney(rev) ? String(Math.round(Number(rev) * Number(pct)) / 100) : "";
+      }
+      const pctOk = !PERCENT.has(type) || (Number(rev) <= 100 && Number(pay) <= 100);
+      const aliasOk = alias === "" || /^[a-z0-9_]{1,64}$/.test(alias);
+      if (!isMoney(rev) || !isMoney(pay) || !pctOk || !aliasOk) { ok = false; return; }
+      const goal = { type, revenue: rev, payout: pay };
+      if (alias) goal.alias = alias;
+      goals.push(goal);
+    });
+    return ok && goals.length ? goals : null;
+  }
 
   // Переключение вкладок
   let kind = "offer";
@@ -394,6 +486,12 @@
         if (valid) fields[name] = Number(value);
       } else if (type === "chips") {
         fields[name] = Number(field.querySelector('[aria-pressed="true"]').dataset.value);
+      } else if (type === "chips-text") {
+        fields[name] = field.querySelector('[aria-pressed="true"]').dataset.value;
+      } else if (type === "goals") {
+        const goals = collectGoals();
+        valid = goals !== null;
+        if (valid) fields[name] = goals;
       } else if (type === "select") {
         fields[name] = field.querySelector("select").value;
       } else {
@@ -411,12 +509,6 @@
           if (valid) fields[name] = Number(value);
         } else if (type === "money") {
           let v = value.replace(",", ".").replace(/\s/g, "");
-          // Выплата процентом от дохода: "80%" → 80% от введённого дохода
-          if (name === "goal_payout" && v.endsWith("%")) {
-            const pct = v.slice(0, -1);
-            const rev = document.querySelector('[data-name="goal_revenue"] input').value.trim().replace(",", ".");
-            v = isMoney(pct) && Number(pct) <= 100 && isMoney(rev) ? String(Math.round(Number(rev) * Number(pct)) / 100) : "";
-          }
           valid = isMoney(v);
           if (valid) fields[name] = v;
         } else {
@@ -430,6 +522,9 @@
     if (!ok) {
       // Прокручиваем к первой ошибке
       const first = document.querySelector(`[data-form="${kind}"] .invalid`);
+      // Ошибка в свёрнутом блоке «Дополнительно» — раскрываем его
+      const box = first && first.closest("details");
+      if (box) box.open = true;
       first && first.scrollIntoView({ behavior: "smooth", block: "center" });
     }
     return ok ? fields : null;
