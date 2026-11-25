@@ -283,8 +283,9 @@
 <script>
   // Объект Mini App. Вне Telegram его нет или он пустой
   const tg = window.Telegram && window.Telegram.WebApp;
-  // Внутри Telegram есть initData; по нему понимаем, что мы в боте, а не в браузере
-  const inTelegram = Boolean(tg && tg.initData);
+  // Понимаем, что открыты в Telegram, по платформе: в обычном браузере она "unknown".
+  // initData для этого не подходит: при открытии кнопкой с клавиатуры Telegram его не передаёт
+  const inTelegram = Boolean(tg && tg.platform && tg.platform !== "unknown");
 
   // Сообщаем Telegram, что приложение готово, и разворачиваем на весь экран
   if (inTelegram) {
