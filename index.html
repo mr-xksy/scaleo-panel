@@ -78,8 +78,6 @@
   .row { display: grid; grid-template-columns: 1fr 1fr 92px; gap: 10px; border-bottom: 0; padding-bottom: 4px; }
   .row .sub .err { font-size: 11px; }
   .margin { font-size: 13px; color: var(--hint); padding: 2px 0 10px; border-bottom: 1px solid var(--line); }
-  .margin.good { color: var(--tg-theme-accent-text-color, #1f9d55); }
-  .margin.bad { color: var(--danger); }
   input::placeholder, textarea::placeholder { color: var(--hint); opacity: .6; }
   input:focus, select:focus, textarea:focus { border-color: var(--accent); background: var(--card); }
   .invalid input, .invalid select, .invalid textarea { border-color: var(--danger); }
@@ -171,15 +169,15 @@
       </div>
       <div data-name="goal_payout" data-type="money" data-required class="sub">
         <label>Выплата <b>*</b></label>
-        <input inputmode="decimal" placeholder="40">
-        <div class="err">Число, до 2 знаков</div>
+        <input inputmode="decimal" placeholder="40 или 80%">
+        <div class="err">Число или % от дохода</div>
       </div>
       <div data-name="currency" data-type="select" class="sub cur">
         <label>Валюта</label>
         <select><option>USD</option><option>EUR</option><option>GBP</option></select>
       </div>
     </div>
-    <div class="margin" id="margin">Доход — что платит рекламодатель, выплата — что получает партнёр</div>
+    <div class="margin">Доход — что платит рекламодатель, выплата — что получает партнёр. Выплату можно указать процентом от дохода: 80%</div>
     <div class="field" data-name="goal_type" data-type="id">
       <label>ID типа цели</label>
       <input inputmode="numeric" placeholder="Необязательно">
@@ -371,26 +369,7 @@
     // Счётчик символов описания
     const counter = e.target.closest(".field") && e.target.closest(".field").querySelector("[data-count]");
     if (counter) counter.textContent = e.target.value.length;
-    // Пересчёт маржи при вводе сумм
-    if (e.target.closest('[data-name="goal_revenue"], [data-name="goal_payout"], [data-name="currency"]')) updateMargin();
   });
-
-  // Маржа = доход − выплата. Подсвечиваем, если уходит в минус
-  function updateMargin() {
-    const el = document.getElementById("margin");
-    const r = document.querySelector('[data-name="goal_revenue"] input').value.trim().replace(",", ".");
-    const p = document.querySelector('[data-name="goal_payout"] input').value.trim().replace(",", ".");
-    const cur = document.querySelector('[data-name="currency"] select').value;
-    el.classList.remove("good", "bad");
-    if (!isMoney(r) || !isMoney(p)) {
-      el.textContent = "Доход — что платит рекламодатель, выплата — что получает партнёр";
-      return;
-    }
-    const m = Math.round((Number(r) - Number(p)) * 100) / 100;
-    el.textContent = m < 0 ? `Маржа ${m} ${cur} — выплата больше дохода` : `Маржа ${m} ${cur} с конверсии`;
-    el.classList.add(m < 0 ? "bad" : "good");
-  }
-  document.addEventListener("change", (e) => { if (e.target.closest('[data-name="currency"]')) updateMargin(); });
 
   // Проверки — те же правила, что у бота (бот всё равно перепроверит сам)
   const isId = (v) => /^\d{1,10}$/.test(v) && Number(v) > 0 && Number(v) <= 1e9;
@@ -431,7 +410,13 @@
           valid = isId(value);
           if (valid) fields[name] = Number(value);
         } else if (type === "money") {
-          const v = value.replace(",", ".");
+          let v = value.replace(",", ".").replace(/\s/g, "");
+          // Выплата процентом от дохода: "80%" → 80% от введённого дохода
+          if (name === "goal_payout" && v.endsWith("%")) {
+            const pct = v.slice(0, -1);
+            const rev = document.querySelector('[data-name="goal_revenue"] input').value.trim().replace(",", ".");
+            v = isMoney(pct) && Number(pct) <= 100 && isMoney(rev) ? String(Math.round(Number(rev) * Number(pct)) / 100) : "";
+          }
           valid = isMoney(v);
           if (valid) fields[name] = v;
         } else {
