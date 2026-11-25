@@ -220,7 +220,7 @@
     </div>
   </details>
 
-  <!-- Кампания -->
+  <!-- Кампания: партнёр, оффер, источник. Лендинг и название бот подставит сам -->
   <form class="card hidden" data-form="campaign" novalidate>
     <h2>Новая кампания</h2>
     <div class="field" data-name="affiliate_id" data-type="pick" data-list="affiliates">
@@ -235,25 +235,30 @@
       <input class="manual hidden" inputmode="numeric" placeholder="ID оффера">
       <div class="err">Выберите оффер из списка или введите ID — только цифры, например 5</div>
     </div>
-    <div class="field" data-name="landing_page_id" data-type="id" data-required>
-      <label>ID лендинга <b>*</b></label>
-      <input inputmode="numeric" placeholder="12">
-      <div class="err">ID — только цифры, например 12</div>
-      <div class="help">Карточка оффера в трекере → Landing pages</div>
+    <div class="field" data-name="traffic_source_id" data-type="pick" data-list="sources">
+      <label>Источник трафика <b>*</b></label>
+      <select></select>
+      <input class="manual hidden" inputmode="numeric" placeholder="ID источника">
+      <div class="err">Выберите источник из списка или введите ID — только цифры</div>
     </div>
-    <div class="field" data-name="traffic_source_id" data-type="id">
-      <label>ID источника трафика</label>
-      <input inputmode="numeric" placeholder="Необязательно">
-      <div class="err">ID — только цифры, например 12</div>
-    </div>
-    <div class="field" data-name="name" data-type="text" data-max="100" data-required>
-      <label>Название кампании <b>*</b></label>
-      <input placeholder="Acme · Casino DE · FB" maxlength="100">
-      <div class="err">От 1 до 100 символов</div>
+    <div class="field" data-name="name" data-type="text" data-max="100">
+      <label>Название</label>
+      <input id="camp-name" placeholder="Соберётся само: Оффер — Партнёр — Источник" maxlength="100">
+      <div class="err">До 100 символов</div>
     </div>
   </form>
 
-  <!-- Рекламодатель -->
+  <details class="card section more hidden" data-form="campaign">
+    <summary>Дополнительно <span class="muted">— лендинг</span></summary>
+    <div class="field" data-name="landing_page_id" data-type="id">
+      <label>ID лендинга</label>
+      <input inputmode="numeric" placeholder="Пусто — бот возьмёт лендинг оффера">
+      <div class="err">ID — только цифры, например 12</div>
+      <div class="help">Нужно, только если у оффера несколько лендингов</div>
+    </div>
+  </details>
+
+  <!-- Рекламодатель: email, компания, заметка. Статус «Активный» и менеджер (вы) — сами -->
   <form class="card hidden" data-form="advertiser" novalidate>
     <h2>Новый рекламодатель</h2>
     <div class="field" data-name="email" data-type="email" data-required>
@@ -266,9 +271,14 @@
       <input placeholder="Acme Media" maxlength="64">
       <div class="err">До 64 символов</div>
     </div>
+    <div class="field" data-name="note" data-type="text" data-max="1000">
+      <label>Информация для менеджеров</label>
+      <textarea rows="2" maxlength="1000" placeholder="Условия, контакт, капы — видно только менеджерам"></textarea>
+      <div class="err">До 1000 символов</div>
+    </div>
   </form>
 
-  <!-- Партнёр -->
+  <!-- Партнёр: email, компания, контакт. Статус «Активный» и менеджер (вы) — сами -->
   <form class="card hidden" data-form="affiliate" novalidate>
     <h2>Новый партнёр</h2>
     <div class="field" data-name="email" data-type="email" data-required>
@@ -280,6 +290,12 @@
       <label>Компания</label>
       <input placeholder="Media Team" maxlength="255">
       <div class="err">До 255 символов</div>
+    </div>
+    <div class="field" data-name="note" data-type="text" data-max="1000">
+      <label>Контакт</label>
+      <input placeholder="@telegram или Skype" maxlength="200">
+      <div class="err">До 1000 символов</div>
+      <div class="help">Попадёт во внутреннюю заметку, партнёр её не видит</div>
     </div>
   </form>
 
@@ -317,6 +333,7 @@
     advertisers: [[5, "Acme Media"], [8, "BetPartners"]],
     affiliates: [[14, "Media Team"], [21, "Pro Traffic"]],
     offers: [[42, "Casino DE CPA"], [43, "Sport BR RevShare"]],
+    sources: [[1, "ASO"], [2, "Facebook"], [3, "UAC"], [4, "PPC"]],
   };
 
   // Списки рекламодателей, партнёров и офферов бот кладёт в адрес после # (на сервер это не уходит)
@@ -539,6 +556,22 @@
     toast.t = setTimeout(() => el.classList.remove("show"), 3500);
   }
 
+  // Подпись выбранного пункта без «ID · »; ручной ввод — просто ID
+  function pickedLabel(name) {
+    const select = document.querySelector(`[data-form="campaign"] [data-name="${name}"] select`);
+    if (!select || !select.value) return "";
+    if (select.value === "manual") return select.parentElement.querySelector(".manual").value.trim();
+    return select.selectedOptions[0].text.replace(/^\d+ · /, "");
+  }
+  // Название кампании по шаблону, до 100 символов
+  function autoCampaignName() {
+    return ["offer_id", "affiliate_id", "traffic_source_id"].map(pickedLabel).filter(Boolean).join(" — ").slice(0, 100);
+  }
+  // Показываем будущее название в подсказке поля, пока его не ввели вручную
+  document.querySelector('[data-form="campaign"]').addEventListener("change", () => {
+    document.getElementById("camp-name").placeholder = autoCampaignName() || "Соберётся само: Оффер — Партнёр — Источник";
+  });
+
   // Отправка: проверяем, упаковываем и передаём боту
   function submit() {
     const fields = collect();
@@ -546,6 +579,8 @@
       tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("error");
       return;
     }
+    // Кампания без названия: собираем «Оффер — Партнёр — Источник» из выбранных пунктов
+    if (kind === "campaign" && !fields.name) fields.name = autoCampaignName();
     const data = JSON.stringify({ v: 1, kind, fields });
     // Telegram передаёт боту не больше 4096 байт
     if (new TextEncoder().encode(data).length > 4000) {
