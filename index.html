@@ -171,11 +171,8 @@
     <h2>Цели</h2>
     <div class="field" data-name="goals" data-type="goals">
       <div class="chips" id="presets">
-        <button type="button" class="chip" data-preset="reg_cpa" aria-pressed="true">REG + CPA</button>
-        <button type="button" class="chip" data-preset="cpa" aria-pressed="false">CPA</button>
-        <button type="button" class="chip" data-preset="reg_rs" aria-pressed="false">REG + RevShare</button>
-        <button type="button" class="chip" data-preset="rs" aria-pressed="false">RevShare</button>
-        <button type="button" class="chip" data-preset="cpc" aria-pressed="false">CPC</button>
+        <button type="button" class="chip" data-preset="reg_cpa" aria-pressed="true">REG + DEP</button>
+        <button type="button" class="chip" data-preset="cpa" aria-pressed="false">DEP</button>
       </div>
       <div id="goal-rows"></div>
       <div class="err">Заполните доход и выплату у каждой цели. Для RevShare — проценты до 100, алиас — латиница строчными</div>
@@ -378,7 +375,7 @@
 
   // Наборы целей — как в боте. Первая цель — по умолчанию, REG без денег (0 / 0)
   const PRESETS = {
-    reg_cpa: ["CPA", "REG"], cpa: ["CPA"], reg_rs: ["RevShare", "REG"], rs: ["RevShare"], cpc: ["CPC"],
+    reg_cpa: ["CPA", "REG"], cpa: ["CPA"],
   };
   const PERCENT = new Set(["RevShare"]);
   // Текущая валюта для подписей сумм
