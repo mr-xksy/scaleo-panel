@@ -138,6 +138,14 @@
     <button class="tab" role="tab" data-kind="affiliate" aria-selected="false">Партнёр</button>
   </div>
 
+  <!-- ТЗ из текста: бот сам разложит строки «Ключ: значение» по полям оффера -->
+  <div class="card section" data-form="offer">
+    <h2>ТЗ из текста</h2>
+    <textarea id="brief-text" rows="6" maxlength="3000" placeholder="Product: …&#10;Geo: CL&#10;Payout ($): 40$&#10;Link: https://…"></textarea>
+    <button type="button" class="chip" id="brief-send">Отправить боту</button>
+    <div class="help">Бот проверит ТЗ и покажет карточку оффера. Рекламодателя выберете там же</div>
+  </div>
+
   <!-- Оффер: только то, что вводится каждый раз. Остальное — в «Дополнительно» -->
   <form class="card" data-form="offer" novalidate>
     <h2>Оффер</h2>
@@ -171,11 +179,8 @@
     <h2>Цели</h2>
     <div class="field" data-name="goals" data-type="goals">
       <div class="chips" id="presets">
-        <button type="button" class="chip" data-preset="reg_cpa" aria-pressed="true">REG + CPA</button>
-        <button type="button" class="chip" data-preset="cpa" aria-pressed="false">CPA</button>
-        <button type="button" class="chip" data-preset="reg_rs" aria-pressed="false">REG + RevShare</button>
-        <button type="button" class="chip" data-preset="rs" aria-pressed="false">RevShare</button>
-        <button type="button" class="chip" data-preset="cpc" aria-pressed="false">CPC</button>
+        <button type="button" class="chip" data-preset="reg_cpa" aria-pressed="true">REG + DEP</button>
+        <button type="button" class="chip" data-preset="cpa" aria-pressed="false">DEP</button>
       </div>
       <div id="goal-rows"></div>
       <div class="err">Заполните доход и выплату у каждой цели. Для RevShare — проценты до 100, алиас — латиница строчными</div>
@@ -378,13 +383,17 @@
 
   // Наборы целей — как в боте. Первая цель — по умолчанию, REG без денег (0 / 0)
   const PRESETS = {
-    reg_cpa: ["CPA", "REG"], cpa: ["CPA"], reg_rs: ["RevShare", "REG"], rs: ["RevShare"], cpc: ["CPC"],
+    reg_cpa: ["CPA", "REG"], cpa: ["CPA"],
   };
   const PERCENT = new Set(["RevShare"]);
   // Текущая валюта для подписей сумм
   const currency = () => document.querySelector('[data-name="currency"] [aria-pressed="true"]').dataset.value;
 
   // Рисуем строки целей для набора. Текст ставим через textContent, без innerHTML с данными
+  // Название цели для типа: CPA в Scaleo называется DEP, тип при этом CPA
+  const GOAL_TITLE = { CPA: "DEP" };
+  const goalTitle = (type) => GOAL_TITLE[type] || type;
+
   function renderGoals(key) {
     const box = document.getElementById("goal-rows");
     box.textContent = "";
@@ -392,9 +401,10 @@
       const row = document.createElement("div");
       row.className = "goal";
       row.dataset.type = type;
+      row.dataset.title = goalTitle(type);
       const name = document.createElement("div");
       name.className = "gname";
-      name.textContent = type;
+      name.textContent = goalTitle(type);
       const hint = document.createElement("span");
       hint.textContent = (i === 0 ? " · по умолчанию" : "") + (PERCENT.has(type) ? " · в процентах" : "");
       name.appendChild(hint);
@@ -410,7 +420,7 @@
         name,
         mk("g-rev", "Доход, " + unit, reg ? "0" : undefined),
         mk("g-pay", PERCENT.has(type) ? "Выплата, %" : "Выплата или 80%", reg ? "0" : undefined),
-        mk("g-alias", "алиас", type.toLowerCase()),
+        mk("g-alias", "алиас", goalTitle(type).toLowerCase()),
       );
       box.appendChild(row);
     });
@@ -452,7 +462,7 @@
       const pctOk = !PERCENT.has(type) || (Number(rev) <= 100 && Number(pay) <= 100);
       const aliasOk = alias === "" || /^[a-z0-9_]{1,64}$/.test(alias);
       if (!isMoney(rev) || !isMoney(pay) || !pctOk || !aliasOk) { ok = false; return; }
-      const goal = { type, revenue: rev, payout: pay };
+      const goal = { type, title: row.dataset.title, revenue: rev, payout: pay };
       if (alias) goal.alias = alias;
       goals.push(goal);
     });
@@ -595,6 +605,23 @@
       toast("Боту ушло бы:\n" + data);
     }
   }
+
+  // ТЗ из текста: отправляем боту текст как есть, разбирает он сам
+  document.getElementById("brief-send").addEventListener("click", () => {
+    // Берём текст и убираем пробелы по краям
+    const text = document.getElementById("brief-text").value.trim();
+    if (!text) { toast("Вставьте текст ТЗ"); return; }
+    // Формат тот же, что у остальных записей панели: версия, тип, поля
+    const data = JSON.stringify({ v: 1, kind: "brief", fields: { text } });
+    // Telegram передаёт боту не больше 4096 байт
+    if (new TextEncoder().encode(data).length > 4000) { toast("ТЗ слишком длинное"); return; }
+    if (inTelegram) {
+      // sendData отправляет текст боту и закрывает панель
+      tg.sendData(data);
+    } else {
+      toast("Откройте панель в Telegram, чтобы отправить ТЗ боту");
+    }
+  });
 
   // Внутри Telegram используем нативную кнопку снизу, свою прячем
   const own = document.getElementById("submit");
