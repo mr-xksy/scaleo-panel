@@ -138,6 +138,14 @@
     <button class="tab" role="tab" data-kind="affiliate" aria-selected="false">Партнёр</button>
   </div>
 
+  <!-- ТЗ из текста: бот сам разложит строки «Ключ: значение» по полям оффера -->
+  <div class="card section" data-form="offer">
+    <h2>ТЗ из текста</h2>
+    <textarea id="brief-text" rows="6" maxlength="3000" placeholder="Product: …&#10;Geo: CL&#10;Payout ($): 40$&#10;Link: https://…"></textarea>
+    <button type="button" class="chip" id="brief-send">Отправить боту</button>
+    <div class="help">Бот проверит ТЗ и покажет карточку оффера. Рекламодателя выберете там же</div>
+  </div>
+
   <!-- Оффер: только то, что вводится каждый раз. Остальное — в «Дополнительно» -->
   <form class="card" data-form="offer" novalidate>
     <h2>Оффер</h2>
@@ -597,6 +605,23 @@
       toast("Боту ушло бы:\n" + data);
     }
   }
+
+  // ТЗ из текста: отправляем боту текст как есть, разбирает он сам
+  document.getElementById("brief-send").addEventListener("click", () => {
+    // Берём текст и убираем пробелы по краям
+    const text = document.getElementById("brief-text").value.trim();
+    if (!text) { toast("Вставьте текст ТЗ"); return; }
+    // Формат тот же, что у остальных записей панели: версия, тип, поля
+    const data = JSON.stringify({ v: 1, kind: "brief", fields: { text } });
+    // Telegram передаёт боту не больше 4096 байт
+    if (new TextEncoder().encode(data).length > 4000) { toast("ТЗ слишком длинное"); return; }
+    if (inTelegram) {
+      // sendData отправляет текст боту и закрывает панель
+      tg.sendData(data);
+    } else {
+      toast("Откройте панель в Telegram, чтобы отправить ТЗ боту");
+    }
+  });
 
   // Внутри Telegram используем нативную кнопку снизу, свою прячем
   const own = document.getElementById("submit");
