@@ -385,6 +385,10 @@
   const currency = () => document.querySelector('[data-name="currency"] [aria-pressed="true"]').dataset.value;
 
   // Рисуем строки целей для набора. Текст ставим через textContent, без innerHTML с данными
+  // Название цели для типа: CPA в Scaleo называется DEP, тип при этом CPA
+  const GOAL_TITLE = { CPA: "DEP" };
+  const goalTitle = (type) => GOAL_TITLE[type] || type;
+
   function renderGoals(key) {
     const box = document.getElementById("goal-rows");
     box.textContent = "";
@@ -392,9 +396,10 @@
       const row = document.createElement("div");
       row.className = "goal";
       row.dataset.type = type;
+      row.dataset.title = goalTitle(type);
       const name = document.createElement("div");
       name.className = "gname";
-      name.textContent = type;
+      name.textContent = goalTitle(type);
       const hint = document.createElement("span");
       hint.textContent = (i === 0 ? " · по умолчанию" : "") + (PERCENT.has(type) ? " · в процентах" : "");
       name.appendChild(hint);
@@ -410,7 +415,7 @@
         name,
         mk("g-rev", "Доход, " + unit, reg ? "0" : undefined),
         mk("g-pay", PERCENT.has(type) ? "Выплата, %" : "Выплата или 80%", reg ? "0" : undefined),
-        mk("g-alias", "алиас", type.toLowerCase()),
+        mk("g-alias", "алиас", goalTitle(type).toLowerCase()),
       );
       box.appendChild(row);
     });
@@ -452,7 +457,7 @@
       const pctOk = !PERCENT.has(type) || (Number(rev) <= 100 && Number(pay) <= 100);
       const aliasOk = alias === "" || /^[a-z0-9_]{1,64}$/.test(alias);
       if (!isMoney(rev) || !isMoney(pay) || !pctOk || !aliasOk) { ok = false; return; }
-      const goal = { type, revenue: rev, payout: pay };
+      const goal = { type, title: row.dataset.title, revenue: rev, payout: pay };
       if (alias) goal.alias = alias;
       goals.push(goal);
     });
